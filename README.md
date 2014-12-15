@@ -1,5 +1,11 @@
 Re-packaged vhd-util with patch to add the convert command applied.
 
+```
+apt-get install -y uuid-dev build-essential
+make
+
+```
+
 # References
 
 * http://blogs.citrix.com/2012/10/04/convert-a-raw-image-to-xenserver-vhd/
