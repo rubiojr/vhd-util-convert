@@ -1,0 +1,1129 @@
+diff -Naur libvhd.h libvhd.h
+--- libvhd.h	2012-10-04 09:59:52.750064358 +0100
++++ libvhd.h	2012-10-04 10:06:11.638071468 +0100
+@@ -24,6 +24,19 @@
+  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
++/*++
++
++History:   Alfred Song			06/24/2010
++			add globle debug flag declare: 		vhd_globle_dbg
++			add macro: 							VHD_GLOBLE_LOG
++		   Alfred Song			06/25/2010
++			add function:						vhd_raw_to_fixed
++												vhd_fiexed_to_raw
++			Alfred Song			07/12/2010
++			add function:						vhd_fiexed_to_dynamic
++												vhd_dynamic_to_fixed
++
++--*/
+ #ifndef _VHD_LIB_H_
+ #define _VHD_LIB_H_
+ 
+@@ -36,6 +49,7 @@
+ #include <sys/bswap.h>
+ #endif
+ 
++#include <syslog.h>
+ #include "vhd-uuid.h"
+ #include "vhd.h"
+ 
+@@ -68,6 +82,17 @@
+   #define BE64_OUT(foo)
+ #endif
+ 
++
++extern int vhd_globle_dbg; /* system log switch */
++
++#define VHD_GLOBLE_LOG(_f, _a...)						\
++	do {												\
++		if (vhd_globle_dbg)								\
++			syslog(LOG_INFO, "%s\\%s, %d\\"_f,	\
++			       __FILE__, __func__, __LINE__, ##_a);						\
++	} while (0)
++
++
+ #define MIN(a, b)                  (((a) < (b)) ? (a) : (b))
+ #define MAX(a, b)                  (((a) > (b)) ? (a) : (b))
+ 
+@@ -75,6 +100,7 @@
+ 
+ #define VHD_BLOCK_SHIFT            21
+ #define VHD_BLOCK_SIZE             (1ULL << VHD_BLOCK_SHIFT)
++#define VHD_SECTORS_PER_BLOCK		(VHD_BLOCK_SIZE >> VHD_SECTOR_SHIFT)
+ 
+ #define UTF_16                     "UTF-16"
+ #define UTF_16LE                   "UTF-16LE"
+@@ -128,9 +154,9 @@
+ typedef uint32_t                   vhd_flag_creat_t;
+ 
+ struct vhd_bat {
+-	uint32_t                   spb;
+-	uint32_t                   entries;
+-	uint32_t                  *bat;
++	uint32_t                   spb;          /* sector number per block */
++	uint32_t                   entries;    /* total entry number */
++	uint32_t                  *bat;         /* entry table */
+ };
+ 
+ struct vhd_batmap {
+@@ -144,8 +170,8 @@
+ 	int                        oflags;
+ 	int                        is_block;
+ 
+-	uint32_t                   spb;
+-	uint32_t                   bm_secs;
++	uint32_t                   spb;            /* sectors per block */
++	uint32_t                   bm_secs;        /* sectors of bitmap */
+ 
+ 	vhd_header_t               header;
+ 	vhd_footer_t               footer;
+@@ -323,4 +349,78 @@
+ int vhd_io_read(vhd_context_t *, char *, uint64_t, uint32_t);
+ int vhd_io_write(vhd_context_t *, char *, uint64_t, uint32_t);
+ 
++off_t get_file_size_rev(const char * name);
++
++/*++
++
++  Function Name:	vhd_raw_to_fixed
++
++  Description:      convert raw disk image to fixed type vhd disk image
++
++  Creator:          Alfred Song        06/25/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++--*/
++int vhd_raw_to_fixed(char * src_name, char * tag_name);
++
++/*++
++
++  Function Name:	vhd_fixed_to_raw
++
++  Description:      convert fixed type vhd disk image to raw disk image
++
++  Creator:          Alfred Song        06/25/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++--*/
++int vhd_fixed_to_raw(char * src_name, char * tag_name);
++
++/*++
++
++  Function Name:	vhd_fixed_to_dynamic
++
++  Description:      convert fixed type vhd disk image to dynamic type vhd disk image
++
++  Creator:          Alfred Song        07/07/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++--*/
++int
++vhd_fixed_to_dynamic(char * src_name, char * tag_name);
++
++/*++
++
++  Function Name:	vhd_dynamic_to_fixed
++
++  Description:      convert dynamic type vhd disk image to fixed type vhd disk image
++
++  Creator:          Alfred Song        07/07/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++--*/
++int
++vhd_dynamic_to_fixed(char * src_name, char * tag_name);
++
++//int get_file_size(char *, off_t *);
++
+ #endif
+diff -Naur vhd-util.h vhd-util.h
+--- vhd-util.h	2012-10-04 09:59:52.750064358 +0100
++++ vhd-util.h	2012-10-04 10:02:43.186067557 +0100
+@@ -24,6 +24,13 @@
+  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
++
++/*++
++
++History:   Alfred Song			06/24/2010
++			add function vhd_util_convert
++
++--*/
+ #ifndef _VHD_UTIL_H_
+ #define _VHD_UTIL_H_
+ 
+@@ -40,5 +47,6 @@
+ int vhd_util_scan(int argc, char **argv);
+ int vhd_util_check(int argc, char **argv);
+ int vhd_util_revert(int argc, char **argv);
++int vhd_util_convert(int argc, char ** argv);
+ 
+ #endif
+diff -Naur libvhd.c libvhd.c
+--- libvhd.c	2012-10-04 09:59:52.746064358 +0100
++++ libvhd.c	2012-10-04 10:02:43.186067558 +0100
+@@ -24,6 +24,20 @@
+  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
++/*++
++
++History:   Alfred Song			06/24/2010
++			add globle debug flag define: 		vhd_globle_dbg
++		   Alfred Song			06/25/2010
++			add function:						vhd_raw_to_fixed
++												vhd_fiexed_to_raw
++		   Alfred Song			07/12/2010
++			add function:						vhd_fiexed_to_dynamic
++												vhd_dynamic_to_fixed
++			modify the vhd_raw_to_fixed and vhd_fiexed_to_raw to process 
++			different target name.
++			
++--*/
+ #ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
+ #endif
+@@ -42,6 +56,7 @@
+ #include "relative-path.h"
+ 
+ static int libvhd_dbg = 0;
++int vhd_globle_dbg = 0;
+ 
+ void
+ libvhd_set_log_level(int level)
+@@ -51,12 +66,12 @@
+ }
+ 
+ #define VHDLOG(_f, _a...)						\
+-	do {								\
+-		if (libvhd_dbg)						\
+-			syslog(LOG_INFO, "libvhd::%s: "_f,		\
++	do {										\
++		if (libvhd_dbg)							\
++			syslog(LOG_INFO, "libvhd::%s: "_f,	\
+ 			       __func__, ##_a);				\
+ 	} while (0)
+-
++		
+ #define BIT_MASK 0x80
+ 
+ #ifdef ENABLE_FAILURE_TESTING
+@@ -413,7 +428,7 @@
+ 
+ 	off  = ctx->header.table_offset;
+ 	bat  = ctx->header.max_bat_size * sizeof(uint32_t);
+-	off += vhd_bytes_padded(bat);
++	off += vhd_bytes_padded(bat); /* sector align for bat entry */
+ 
+ 	*_off = off;
+ 	return 0;
+@@ -945,6 +960,7 @@
+ 	memcpy(footer, buf, sizeof(vhd_footer_t));
+ 
+ 	vhd_footer_in(footer);
++
+ 	err = vhd_validate_footer(footer);
+ 
+ out:
+@@ -970,6 +986,7 @@
+ 		return -errno;
+ 
+ 	err = vhd_read_footer_at(ctx, footer, off - 512);
++	
+ 	if (err != -EINVAL)
+ 		return err;
+ 
+@@ -1817,7 +1834,7 @@
+ 		return -EINVAL;
+ 
+ 	off  = vhd_sectors_to_bytes(blk);
+-	size = vhd_bytes_padded(ctx->spb >> 3);
++	size = vhd_bytes_padded(ctx->spb >> 3); /* byte-size of bitmap */
+ 
+ 	err  = vhd_seek(ctx, off, SEEK_SET);
+ 	if (err)
+@@ -1839,6 +1856,18 @@
+ 	return err;
+ }
+ 
++/*
++* Description: 
++*   Read a block data from a VHD file.
++* 
++* Input:
++*   ctx       - pointer to VHD operation structure
++*   block     - which block to read
++*
++* Output:
++*   bufp      - output buffer saving block data read
++*
++*/
+ int
+ vhd_read_block(vhd_context_t *ctx, uint32_t block, char **bufp)
+ {
+@@ -1878,6 +1907,7 @@
+ 		goto fail;
+ 	}
+ 
++    /* padded by 0 */
+ 	if (end < off + ctx->header.block_size) {
+ 		size = end - off;
+ 		memset(buf + size, 0, ctx->header.block_size - size);
+@@ -1926,7 +1956,7 @@
+ 	if (err)
+ 		goto out;
+ 
+-	vhd_footer_out(f);
++	vhd_footer_out(f); /* switch to big-endian before output to disk */
+ 
+ 	err = vhd_write(ctx, f, sizeof(vhd_footer_t));
+ 
+@@ -2262,6 +2292,11 @@
+ 	if (ret == size)
+ 		return 0;
+ 
++	/* when real data size less than the required data size, 
++	   return real data size. we consider it valid/invalid, decided  by errno. */
++	if (ret > 0 && ret < size)
++		return errno;
++
+ 	VHDLOG("%s: read of %zu returned %zd, errno: %d\n",
+ 	       ctx->file, size, ret, -errno);
+ 
+@@ -2279,6 +2314,11 @@
+ 	if (ret == size)
+ 		return 0;
+ 
++	/* when real data size less than the required data size, 
++	   return real data size. we consider it valid/invalid, decided by errno. */
++	if (ret > 0 && ret < size)
++		return errno;
++
+ 	VHDLOG("%s: write of %zu returned %zd, errno: %d\n",
+ 	       ctx->file, size, ret, -errno);
+ 
+@@ -2361,7 +2401,7 @@
+ vhd_open(vhd_context_t *ctx, const char *file, int flags)
+ {
+ 	int err, oflags;
+-
++	   
+ 	if (flags & VHD_OPEN_STRICT)
+ 		vhd_flag_clear(flags, VHD_OPEN_FAST);
+ 
+@@ -2387,6 +2427,7 @@
+ 	}
+ 
+ 	err = vhd_test_file_fixed(ctx->file, &ctx->is_block);
++	
+ 	if (err)
+ 		goto fail;
+ 
+@@ -2399,6 +2440,7 @@
+ 	}
+ 
+ 	err = vhd_read_footer(ctx, &ctx->footer);
++	
+ 	if (err)
+ 		goto fail;
+ 
+@@ -2475,7 +2517,7 @@
+ 	 * big endian unicode here 
+ 	 */
+ 	cd = iconv_open(UTF_16BE, "ASCII");
+-	if (cd == (iconv_t)-1) {
++	if (cd == (iconv_t)-1) { /* (iconv_t)(-1) */
+ 		err = -errno;
+ 		goto out;
+ 	}
+@@ -2527,6 +2569,22 @@
+ 	return end;
+ }
+ 
++off_t
++get_file_size_rev(const char *name)
++{
++	int fd;
++	off_t end;
++
++	fd = open(name, O_LARGEFILE | O_RDONLY);
++	if (fd == -1) {
++		VHDLOG("unable to open '%s': %d\n", name, errno);
++		return -errno;
++	}
++	end = lseek(fd, 0, SEEK_END);
++	close(fd); 
++	return end;
++}
++
+ static int
+ vhd_initialize_header(vhd_context_t *ctx, const char *parent_path, 
+ 		uint64_t size, int raw)
+@@ -2597,7 +2655,9 @@
+ 
+ 	off = ctx->batmap.header.batmap_offset + 
+ 		vhd_sectors_to_bytes(ctx->batmap.header.batmap_size);
+-	if (off & (VHD_SECTOR_SIZE - 1))
++	
++	/* 512 bytes align */
++	if (off & (VHD_SECTOR_SIZE - 1)) 
+ 		off = vhd_bytes_padded(off);
+ 
+ 	for (i = 0; i < 3; i++) {
+@@ -2714,7 +2774,7 @@
+ 	if (!vhd_type_dynamic(ctx))
+ 		return -EINVAL;
+ 
+-	map_bytes = (ctx->header.max_bat_size + 7) >> 3;
++	map_bytes = (ctx->header.max_bat_size + 7) >> 3; /* byte align for map-table of batmap */
+ 	header    = &ctx->batmap.header;
+ 
+ 	memset(header, 0, sizeof(vhd_batmap_header_t));
+@@ -2726,9 +2786,12 @@
+ 
+ 	header->batmap_offset  = off +
+ 		vhd_bytes_padded(sizeof(vhd_batmap_header_t));
+-	header->batmap_size    = secs_round_up_no_zero(map_bytes);
++	
++	/* size in sector(round up) for map-table of batmap, not including header of batmap */
++	header->batmap_size    = secs_round_up_no_zero(map_bytes); 
+ 	header->batmap_version = VHD_BATMAP_CURRENT_VERSION;
+ 
++       /* size in byte(512 bytes round up) for map-table of batmap, not including header of batmap */
+ 	map_bytes = vhd_sectors_to_bytes(header->batmap_size);
+ 
+ 	err = posix_memalign((void **)&ctx->batmap.map,
+@@ -2761,7 +2824,7 @@
+ 
+ 	memset(ctx->bat.bat, 0, size);
+ 	for (i = 0; i < ctx->header.max_bat_size; i++)
+-		ctx->bat.bat[i] = DD_BLK_UNUSED;
++		ctx->bat.bat[i] = DD_BLK_UNUSED; /* initially, unused for each entry */
+ 
+ 	err = vhd_seek(ctx, ctx->header.table_offset, SEEK_SET);
+ 	if (err)
+@@ -2862,6 +2925,8 @@
+ 	memset(&ctx, 0, sizeof(vhd_context_t));
+ 	footer = &ctx.footer;
+ 	header = &ctx.header;
++	
++	/* size allocating by block align */
+ 	blks   = (bytes + VHD_BLOCK_SIZE - 1) >> VHD_BLOCK_SHIFT;
+ 	size   = blks << VHD_BLOCK_SHIFT;
+ 
+@@ -2984,6 +3049,10 @@
+ 		if (test_bit(map, map_off + i))
+ 			goto next;
+ 
++		/* 
++		 * consider the data sector are all-zero when the 
++		 * corresponding bit in bitmap is zero for better performance
++		 */
+ 		if (ctx && !vhd_bitmap_test(ctx, bitmap, bitmap_off + i))
+ 			goto next;
+ 
+@@ -3175,8 +3244,10 @@
+ int
+ vhd_io_read(vhd_context_t *ctx, char *buf, uint64_t sec, uint32_t secs)
+ {
++/*
+ 	if (vhd_sectors_to_bytes(sec + secs) > ctx->footer.curr_size)
+ 		return -ERANGE;
++*/
+ 
+ 	if (!vhd_type_dynamic(ctx))
+ 		return __vhd_io_fixed_read(ctx, buf, sec, secs);
+@@ -3342,11 +3413,482 @@
+ int
+ vhd_io_write(vhd_context_t *ctx, char *buf, uint64_t sec, uint32_t secs)
+ {
++/*
+ 	if (vhd_sectors_to_bytes(sec + secs) > ctx->footer.curr_size)
+ 		return -ERANGE;
++*/
+ 
+ 	if (!vhd_type_dynamic(ctx))
+ 		return __vhd_io_fixed_write(ctx, buf, sec, secs);
+ 
+ 	return __vhd_io_dynamic_write(ctx, buf, sec, secs);
+ }
++
++/*
++int 
++get_file_size(char * file_path, off_t * out_file_size)
++{
++	int err;
++	struct stat stats;
++
++	err = stat(file_path, &stats);
++	if (err == -1)
++		return -errno;
++
++	*out_file_size = stats.st_size;
++	return err;	
++}
++*/
++
++/*++
++
++  Function Name:	vhd_raw_to_fixed
++
++  Description:      convert raw disk image to fixed type vhd disk image
++
++  Creator:          Alfred Song        06/25/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++  NOTE: For better performance, we will do the overwritten convert!
++
++--*/
++int
++vhd_raw_to_fixed(char * src_name, char * tag_name)
++{
++	uint64_t file_size;
++	vhd_context_t ctx;
++	int err;
++	
++	file_size			= 0;
++	err					= 0;
++	memset(&ctx, 0, sizeof(vhd_context_t));
++
++	if (!src_name && !tag_name) {
++		VHD_GLOBLE_LOG("error, invalid input, src_name=%s, tag_name=%s\n", \
++			src_name, tag_name);
++		goto out;
++	}
++
++	VHD_GLOBLE_LOG("src_name=%s, tag_name=%s\n", src_name, tag_name);
++	
++	file_size = get_file_size_rev(src_name);
++	if (file_size == 0) {
++		printf("Source file size is zero.\n");
++		VHD_GLOBLE_LOG("file_size(%"PRIu64").\n", file_size);
++		return -EINVAL;
++	}
++
++	if (errno){
++		printf("Fail to get source file size.\n");
++		VHD_GLOBLE_LOG("errno(%d).\n", errno);
++		return -EINVAL;
++	}	
++	VHD_GLOBLE_LOG("file_size=%"PRIu64"\n", file_size);
++
++	vhd_initialize_footer(&ctx, HD_TYPE_FIXED, file_size);
++
++	ctx.fd = open(src_name, O_WRONLY | O_LARGEFILE | O_DIRECT, 0644);
++	if (ctx.fd == -1)
++		return -errno;
++
++	ctx.file = strdup(src_name);
++	if (!ctx.file) {
++		err = -ENOMEM;
++		goto out;
++	}
++
++	err = vhd_test_file_fixed(ctx.file, &ctx.is_block);
++	if (err)
++		goto out;
++
++	err = vhd_write_footer_at(&ctx, &ctx.footer, file_size);
++	if (err)
++		goto out;
++
++	/* no error, change name */
++	vhd_close(&ctx);
++	if (strcmp(src_name, tag_name) != 0) {
++		err = rename(src_name, tag_name);
++		if (err) {
++			VHD_GLOBLE_LOG("error, src_name=%s, tag_name=%s, %d\n", \
++				src_name, tag_name, err);
++			goto out;
++		}
++	}
++	printf("NOTE: For better performance, we will do the overwritten convert!\n");
++	printf("Done! Convert to %s.\n", tag_name);
++
++out:
++	vhd_close(&ctx);
++	if (err && !ctx.is_block)
++		unlink(src_name);
++	return err;
++}
++
++/*++
++
++  Function Name:	vhd_fixed_to_raw
++
++  Description:      convert fixed type vhd disk image to raw disk image
++
++  Creator:          Alfred Song        06/25/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++  NOTE: For better performance, we will do the overwritten convert!
++
++--*/
++int
++vhd_fixed_to_raw(char * src_name, char * tag_name)
++{
++	uint64_t file_size;
++	vhd_context_t ctx;
++	int err;
++	
++	file_size			= 0;
++	err					= 0;
++	memset(&ctx, 0, sizeof(vhd_context_t));
++
++	if (!src_name && !tag_name) {
++		VHD_GLOBLE_LOG("error, invalid input, src_name=%s, tag_name=%s\n", \
++			src_name, tag_name);
++		goto out;
++	}
++
++	VHD_GLOBLE_LOG("src_name=%s, tag_name=%s\n", src_name, tag_name);
++	
++	file_size = get_file_size_rev(src_name);
++	if (file_size == 0) {
++		printf("Source file size is zero.\n");
++		VHD_GLOBLE_LOG("file_size(%"PRIu64").\n", file_size);
++		goto out;
++	}
++
++	if (errno){
++		printf("Fail to get source file size.\n");
++		VHD_GLOBLE_LOG("errno(%d).\n", errno);
++		goto out;
++	}	
++	VHD_GLOBLE_LOG("file_size=%"PRIu64"\n", file_size);
++
++	err = truncate(src_name, file_size - 512);
++	if (err) {
++		VHD_GLOBLE_LOG("err(%d).\n", err);
++		goto out;
++	}
++
++	/* no error, change name */
++	vhd_close(&ctx);
++	if (strcmp(src_name, tag_name) != 0) {
++		err = rename(src_name, tag_name);
++		if (err) {
++			VHD_GLOBLE_LOG("error, src_name=%s, tag_name=%s, %d\n", \
++				src_name, tag_name, err);
++			goto out;
++		}
++	}
++	printf("NOTE: For better performance, we will do the overwritten convert!\n");
++	printf("Done! Convert to %s.\n", tag_name);
++
++out:
++	vhd_close(&ctx);
++	if (err && !ctx.is_block)
++		unlink(src_name);
++	return err;
++}
++
++/*++
++
++  Function Name:	vhd_fixed_to_dynamic
++
++  Description:      convert fixed type vhd disk image to dynamic type vhd disk image
++
++  Creator:          Alfred Song        07/07/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++--*/
++int
++vhd_fixed_to_dynamic(char * src_name, char * tag_name)
++{
++	vhd_context_t ctx_src;
++	vhd_context_t ctx_tag;
++	int err;
++	uint64_t current_block, sec, secs, total_block;
++	char * buf;
++	char * new_name;
++	
++	memset(&ctx_src, 0, sizeof(vhd_context_t));
++	memset(&ctx_tag, 0, sizeof(vhd_context_t));
++	err					= 0;
++	buf					= NULL;
++	new_name            = NULL;
++	
++	if (!src_name && !tag_name) {
++		VHD_GLOBLE_LOG("error, invalid input, src_name=%s, tag_name=%s\n", \
++			src_name, tag_name);
++		goto out;
++	}
++
++	VHD_GLOBLE_LOG("src_name=%s, tag_name=%s\n", src_name, tag_name);
++
++	/* size allocate to keep no overflow happen */
++	err = posix_memalign((void **)&new_name, 4096, strlen(src_name) + 10);
++	if (err) {
++		err = -err;
++		goto out;
++	}
++
++	strcpy(new_name, src_name);
++	strcat(new_name, ".bak");
++
++	err = rename(src_name, new_name);
++	if (err) {
++		VHD_GLOBLE_LOG("error, src_name=%s, new_name=%s, %d\n", \
++			src_name, new_name, err);
++		goto out;
++	}
++
++	VHD_GLOBLE_LOG("after renaming, src_name=%s, new_name=%s\n", \
++		src_name, new_name);
++
++/*
++	if (strcmp(src_name, tag_name) == 0) {
++		printf("error, source file %s equals target file %s.\nPlease specify \
++different name.\n", src_name, tag_name);
++		err = -EINVAL;
++		goto out;
++		//TODO
++	}
++*/
++	printf("Back up source to %s.\n", new_name);
++	err = vhd_open(&ctx_src, new_name, VHD_OPEN_RDWR);
++	if (err) {
++		printf("error, opening %s: %d\n", new_name, err);
++		VHD_GLOBLE_LOG("error, opening new_name=%s, %d\n", new_name, err);
++		goto out;
++	}
++
++	if (ctx_src.footer.type != HD_TYPE_FIXED) {
++		err = -EINVAL;
++		printf("error, source file %s is not fixed type VHD, %d\n", new_name, err);
++		VHD_GLOBLE_LOG("error, source file %s is not fixed type VHD, %d\n", new_name, err);
++		goto out;
++	}
++
++	if (ctx_src.footer.curr_size % VHD_BLOCK_SIZE) {
++		total_block = ctx_src.footer.curr_size / VHD_BLOCK_SIZE + 1;
++	} else {
++		total_block = ctx_src.footer.curr_size / VHD_BLOCK_SIZE;
++	}
++
++	VHD_GLOBLE_LOG("curr_size=%"PRIu64", total_block=%"PRIu64"\n", ctx_src.footer.curr_size, total_block);
++	
++	err = vhd_create(tag_name, total_block * VHD_BLOCK_SIZE, HD_TYPE_DYNAMIC, 0);
++	if (err) {
++		printf("error, creating %s: %d\n", tag_name, err);
++		VHD_GLOBLE_LOG("error, creating tag_name=%s, %d\n", tag_name, err);
++		goto out;
++	}
++
++	err = vhd_open(&ctx_tag, tag_name, VHD_OPEN_RDWR);
++	if (err) {
++		printf("error, opening %s: %d\n", tag_name, err);
++		VHD_GLOBLE_LOG("error, opening tag_name=%s, %d\n", tag_name, err);
++		goto out;
++	}
++
++	sec  = 0;
++	secs = VHD_SECTORS_PER_BLOCK;
++
++	err = posix_memalign((void **)&buf, 4096, VHD_BLOCK_SIZE);
++	if (err) {
++		err = -err;
++		goto out;
++	}
++
++	printf("Converting to %s.\n", tag_name);
++	for (current_block = 0; current_block < total_block; current_block++) {
++		err = vhd_io_read(&ctx_src, buf, sec, secs);
++		if (err) { 
++			VHD_GLOBLE_LOG("vhd_io_read error, sec=%"PRIu64", current_block=%"PRIu64"\n", sec, current_block);
++			goto out;
++		}
++
++		err = vhd_io_write(&ctx_tag, buf, sec, secs);
++		if (err) {
++			VHD_GLOBLE_LOG("vhd_io_write error, sec=%"PRIu64", current_block=%"PRIu64"\n", sec, current_block);
++			goto out;
++		}
++
++		sec += secs;
++		if ((current_block % 10) == 0) 
++			printf(">"); /* progress show */
++	}
++		
++	VHD_GLOBLE_LOG("sec=%"PRIu64", current_block=%"PRIu64"\n", sec, current_block);
++	printf("Done!\n");
++out:
++	free(buf);
++	free(new_name);
++	vhd_close(&ctx_src);
++	vhd_close(&ctx_tag);
++	return err;
++}
++
++/*++
++
++  Function Name:	vhd_dynamic_to_fixed
++
++  Description:      convert dynamic type vhd disk image to fixed type vhd disk image
++
++  Creator:          Alfred Song        07/07/2010
++
++  Input:			src_name		- source file name
++  					tag_name		- target file name
++
++  Output:			0				- success
++  					others			- fail
++
++--*/
++int
++vhd_dynamic_to_fixed(char * src_name, char * tag_name)
++{
++	vhd_context_t ctx_src;
++	vhd_context_t ctx_tag;
++	int err;
++	uint64_t current_block, sec, secs, total_block;
++	char * buf;
++	char * new_name;
++	
++	memset(&ctx_src, 0, sizeof(vhd_context_t));
++	memset(&ctx_tag, 0, sizeof(vhd_context_t));
++	err					= 0;
++	buf					= NULL;
++	new_name            = NULL;
++
++	if (!src_name && !tag_name) {
++		VHD_GLOBLE_LOG("error, invalid input, src_name=%s, tag_name=%s\n", \
++			src_name, tag_name);
++		goto out;
++	}
++
++	VHD_GLOBLE_LOG("src_name=%s, tag_name=%s\n", src_name, tag_name);
++
++	/* size allocate to keep no overflow happen */
++	err = posix_memalign((void **)&new_name, 4096, strlen(src_name) + 10);
++	if (err) {
++		err = -err;
++		goto out;
++	}
++
++	strcpy(new_name, src_name);
++	strcat(new_name, ".bak");
++
++	err = rename(src_name, new_name);
++	if (err) {
++		VHD_GLOBLE_LOG("error, src_name=%s, new_name=%s, %d\n", \
++			src_name, new_name, err);
++		goto out;
++	}
++
++	VHD_GLOBLE_LOG("after renaming, src_name=%s, new_name=%s\n", \
++		src_name, new_name);
++/*
++	if (strcmp(src_name, tag_name) == 0) {
++		printf("error, source file %s equals target file %s.\nPlease specify \
++different name.\n", src_name, tag_name);
++		err = -EINVAL;
++		goto out;
++		//TODO
++	}
++*/
++
++	printf("Back up source to %s.\n", new_name);
++	err = vhd_open(&ctx_src, new_name, VHD_OPEN_RDWR);
++	if (err) {
++		printf("error, opening %s: %d\n", new_name, err);
++		VHD_GLOBLE_LOG("error, opening new_name=%s, %d\n", new_name, err);
++		goto out;
++	}
++
++	if (ctx_src.footer.type != HD_TYPE_DYNAMIC) {
++		err = -EINVAL;
++		printf("error, source file %s is not dynamic type VHD, %d\n", new_name, err);
++		VHD_GLOBLE_LOG("error, source file %s is not dynamic type VHD, %d\n", new_name, err);
++		goto out;
++	}
++
++	if (ctx_src.footer.curr_size % VHD_BLOCK_SIZE) {
++		total_block = ctx_src.footer.curr_size / VHD_BLOCK_SIZE + 1;
++	} else {
++		total_block = ctx_src.footer.curr_size / VHD_BLOCK_SIZE;
++	}
++
++	VHD_GLOBLE_LOG("curr_size=%"PRIu64", total_block=%"PRIu64"\n", ctx_src.footer.curr_size, total_block);
++	
++	err = vhd_create(tag_name, total_block * VHD_BLOCK_SIZE, HD_TYPE_FIXED, 0);
++	if (err) {
++		printf("error, creating %s: %d\n", tag_name, err);
++		VHD_GLOBLE_LOG("error, creating tag_name=%s, %d\n", tag_name, err);
++		goto out;
++	}
++
++	err = vhd_open(&ctx_tag, tag_name, VHD_OPEN_RDWR);
++	if (err) {
++		printf("error, opening %s: %d\n", tag_name, err);
++		VHD_GLOBLE_LOG("error, opening tag_name=%s, %d\n", tag_name, err);
++		goto out;
++	}
++
++	sec  = 0;
++	secs = VHD_SECTORS_PER_BLOCK;
++
++	err = posix_memalign((void **)&buf, 4096, VHD_BLOCK_SIZE);
++	if (err) {
++		err = -err;
++		goto out;
++	}
++
++	printf("Converting to %s.\n", tag_name);
++	for (current_block = 0; current_block < total_block; current_block++) {
++		err = vhd_io_read(&ctx_src, buf, sec, secs);
++		if (err) { 
++			VHD_GLOBLE_LOG("vhd_io_read error, sec=%"PRIu64", current_block=%"PRIu64"\n", sec, current_block);
++			goto out;
++		}
++
++		err = vhd_io_write(&ctx_tag, buf, sec, secs);
++		if (err) {
++			VHD_GLOBLE_LOG("vhd_io_write error, sec=%"PRIu64", current_block=%"PRIu64"\n", sec, current_block);
++			goto out;
++		}
++
++		sec += secs;
++		if ((current_block % 10) == 0) 
++			printf(">"); /* progress show */
++	}
++		
++	VHD_GLOBLE_LOG("sec=%"PRIu64", current_block=%"PRIu64"\n", sec, current_block);
++	printf("Done!\n");
++out:
++	free(buf);
++	free(new_name);
++	vhd_close(&ctx_src);
++	vhd_close(&ctx_tag);
++	return err;
++}
++
+diff -Naur vhd-util-check.c vhd-util-check.c
+--- vhd-util-check.c	2012-10-04 09:59:52.746064358 +0100
++++ vhd-util-check.c	2012-10-04 10:02:43.186067558 +0100
+@@ -89,7 +89,7 @@
+ 		     footer->crtr_ver == VHD_VERSION(1, 1))) {
+ 			char tmp = footer->hidden;
+ 			footer->hidden = 0;
+-			checksum = vhd_checksum_footer(footer);
++			checksum = vhd_checksum_footer(footer); /* ignore 'hidden' */
+ 			footer->hidden = tmp;
+ 
+ 			if (checksum == footer->checksum)
+diff -Naur vhd-util-convert.c vhd-util-convert.c
+--- vhd-util-convert.c	1970-01-01 01:00:00.000000000 +0100
++++ vhd-util-convert.c	2012-10-04 10:02:43.186067558 +0100
+@@ -0,0 +1,136 @@
++/*++
++
++File Name:      vhd-util-convert.c
++
++Description:    This function could be used to finish converting RAW <-> Fixed VHD,
++				Fixed VHD <-> Dynamic VHD.
++
++Creator:        Alfred Song     	06/24/2010
++
++History:      	Alfred Song			07/12/2010
++				add function:			vhd_fiexed_to_dynamic
++										vhd_dynamic_to_fixed  
++
++--*/
++#include <time.h>
++#include <stdio.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <libgen.h>
++#include <inttypes.h>
++#include <sys/stat.h>
++
++#include "libvhd.h"
++#include "vhd-util.h"
++
++#define DISK_TYPE_RAW                       0
++#define DISK_TYPE_VHD_FIXED                 1
++#define DISK_TYPE_VHD_DYNAMIC               2
++#define DISK_TYPE_VHD_DIFF                  3
++
++int
++vhd_util_convert(int argc, char **argv)
++{
++	char *input_file_name;
++	char *output_file_name;
++	long int source_type;  /* -1 - invalid,
++															 0 - raw
++															 1 - fixed
++															 2 - dynamic
++															 3 - parent */
++	long int target_type;  /* -1 - invalid,
++															 0 - raw
++															 1 - fixed
++															 2 - dynamic
++															 3 - parent */
++	int c, err;
++	vhd_flag_creat_t flags;
++
++	input_file_name       = NULL;
++	output_file_name      = NULL;
++	source_type           = -1;
++	target_type           = -1;
++	err                   = -EINVAL;
++	flags                 = 0;
++	
++
++	if (!argc || !argv)
++		goto usage;
++
++	optind = 0;
++	while ((c = getopt(argc, argv, "i:o:s:t:h")) != -1) {
++		switch (c) {
++		case 'i':
++			input_file_name = optarg;
++			break;
++		case 'o':
++			output_file_name = optarg;
++			break;
++		case 's':
++			source_type = strtol(optarg, NULL, 10);
++			break;
++		case 't':
++			target_type = strtol(optarg, NULL, 10);
++			break;
++		case 'h':
++		default:
++			goto usage;
++		}
++	}
++
++	VHD_GLOBLE_LOG("cmd parameters: "
++					"input_file_name=%s, output_file_name=%s, "
++					"source_type=%ld, target_type=%ld\n",
++					input_file_name, output_file_name, source_type, target_type);
++
++	if (!input_file_name || !output_file_name \
++		|| source_type > 3 || source_type < 0 \
++		|| target_type > 3 || target_type < 0 || optind != argc)
++		goto usage;
++
++	if (source_type == DISK_TYPE_RAW && target_type == DISK_TYPE_VHD_FIXED) {
++		err = vhd_raw_to_fixed(input_file_name, output_file_name);
++		if(err) {
++			printf("Fail to convert RAW disk to VHD fixed disk.\n");
++			VHD_GLOBLE_LOG("Fail to convert RAW disk to VHD fixed disk.\n");
++			exit(1);
++		}
++	} else if (source_type == DISK_TYPE_VHD_FIXED && target_type == DISK_TYPE_RAW) {
++		err = vhd_fixed_to_raw(input_file_name, output_file_name);
++		if(err) {
++			printf("Fail to convert VHD fixed disk to RAW disk.\n");
++			VHD_GLOBLE_LOG("Fail to convert VHD fixed disk to RAW disk.\n");
++			exit(1);
++		}
++	} else if (source_type == DISK_TYPE_VHD_FIXED && target_type == DISK_TYPE_VHD_DYNAMIC) {
++		err = vhd_fixed_to_dynamic(input_file_name, output_file_name);
++		if(err) {
++			printf("Fail to convert VHD fixed disk to VHD dynamic disk. %d\n", err);
++			VHD_GLOBLE_LOG("Fail to convert VHD fixed disk to VHD dynamic disk. %d\n", err);
++			exit(1);
++		}
++	} else if (source_type == DISK_TYPE_VHD_DYNAMIC && target_type == DISK_TYPE_VHD_FIXED) {
++		err = vhd_dynamic_to_fixed(input_file_name, output_file_name);
++		if(err) {
++			printf("Fail to convert VHD dynamic disk to VHD fixed disk. %d\n", err);
++			VHD_GLOBLE_LOG("Fail to convert VHD dynamic disk to VHD fixed disk. %d\n", err);
++			exit(1);
++		}
++	} else {
++		printf("Currently, only RAW <-> FIXED, FIXED <-> DYNAMIC convert is supported.\n");
++	}
++
++	return 0; //TODO
++
++usage:
++	printf("\
++options: <-i input file name> \
++<-o output file name> \
++<-s source type(0 - raw, 1 - fixed, 2 - dynamic, 3 - differencing)> \
++<-t target type(0 - raw, 1 - fixed, 2 - dynamic, 3 - differencing)> \
++[-h help]\n");
++	return -EINVAL;
++}
++
+diff -Naur vhd-util.c vhd-util.c
+--- vhd-util.c	2012-10-04 09:59:52.746064358 +0100
++++ vhd-util.c	2012-10-04 10:02:43.186067558 +0100
+@@ -24,6 +24,13 @@
+  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
++/*++
++
++History:   Alfred Song			06/24/2010
++			add process function: 		vhd_util_convert
++			add globle debug set: 		vhd_globle_dbg
++
++--*/
+ #include <errno.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -59,6 +66,7 @@
+ 	{ .name = "scan",        .func = vhd_util_scan          },
+ 	{ .name = "check",       .func = vhd_util_check         },
+ 	{ .name = "revert",      .func = vhd_util_revert        },
++	{ .name = "convert",     .func = vhd_util_convert       },
+ };
+ 
+ #define print_commands()					\
+@@ -136,8 +144,10 @@
+ 	for (i = 1; i < cargc; i++) {
+ 		char *arg = argv[i + (argc - cargc)];
+ 
++		/* system log for debug, and ignore this option */
+ 		if (!strcmp(arg, "--debug")) {
+ 			libvhd_set_log_level(1);
++			vhd_globle_dbg = 1;
+ 			continue;
+ 		}
+ 
