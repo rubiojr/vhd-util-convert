@@ -30,3 +30,5 @@
 * http://shankerbalan.net/blog/recover-xenserver-vhd-volumes/
 * https://github.com/metral/rpc_rd/blob/master/qcow_image
 * https://developer.rackspace.com/blog/bootstrap-your-qcow-images-for-the-rackspace-public-cloud/
+* http://marc.info/?l=xen-devel&m=136111151926619&w=2
+* https://lists.xenserver.org/sympa/arc/xs-devel/2013-08/msg00026.html
