@@ -1,4 +1,4 @@
-Re-packaged vhd-util with patch to add the convert command applied.
+Re-packaged vhd-util from [xen-4.4.0](http://bits.xensource.com/oss-xen/release/4.4.0/xen-4.4.0.tar.gz) with patch to add the convert command applied.
 
 ```
 apt-get install -y uuid-dev build-essential
