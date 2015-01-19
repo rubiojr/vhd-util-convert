@@ -34,3 +34,5 @@
 * https://lists.xenserver.org/sympa/arc/xs-devel/2013-08/msg00026.html
 * http://xenserver.org/partners/developing-products-for-xenserver/18-sdk-development/114-import-export-vdi.html
 * Operating System Fixup in XenCenter https://support.citrix.com/article/CTX124961
+* https://github.com/xenserver/xencenter-ovf
+* http://xenserver.org/partners/developing-products-for-xenserver/18-sdk-development/106-the-transfer-vm.html
