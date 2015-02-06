@@ -36,3 +36,4 @@
 * Operating System Fixup in XenCenter https://support.citrix.com/article/CTX124961
 * https://github.com/xenserver/xencenter-ovf
 * http://xenserver.org/partners/developing-products-for-xenserver/18-sdk-development/106-the-transfer-vm.html
+* http://bhaisaab.org/logs/building-systemvms/
